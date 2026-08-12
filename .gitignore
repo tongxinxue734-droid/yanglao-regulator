@@ -1,0 +1,32 @@
+# ===== 本地环境（不上传） =====
+# 数据（SQLite 库 / 上传照片 / 报告）—— Streamlit Cloud 上由 app.py 自动重建演示数据
+data/
+# 虚拟环境
+.venv/
+venv/
+# Python 缓存
+__pycache__/
+*.py[cod]
+# 日志
+*.log
+*.log.*
+
+# ===== 敏感 / 本机专用（绝不上传公开仓库） =====
+reasonix.toml
+.reasonix/
+启动系统.bat
+# IDE 示例
+main.py
+
+# ===== 其他 =====
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+.dockerignore
+Dockerfile
+docker-compose.yml
+_tmp*
+
+# Playwright 测试快照
+.playwright-mcp/
