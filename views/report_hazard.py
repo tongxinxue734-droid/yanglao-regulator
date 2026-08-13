@@ -142,6 +142,7 @@ def render(session: Session):
             with col_diag:
                 st.markdown("#### 🔍 AI 诊断报告")
                 st.markdown(f"**📝 场景描述**：{ai.get('scene_desc') or '—'}")
+                st.markdown(f"**对应条款**：{ai.get('standard_code') or '无'}（《养老机构运营违规评价指标》）")
                 st.markdown(f"**风险类别**：{ai.get('category', '—')} · "
                             f"**等级**：{level_badge(ai.get('level', '蓝色'))} · "
                             f"**置信度**：{ai.get('confidence', 0) * 100:.0f}%", unsafe_allow_html=True)
@@ -162,7 +163,7 @@ def render(session: Session):
                 default_title = ai.get("title", "")
                 default_level = ai.get("level", "黄色")
 
-                # AI 类目 → 推荐指标映射（自动联动扣分，人工可改）
+                # AI 条款编号 → 推荐指标（AI 识别的 standard_code 优先精准对应，类别映射兜底）
                 CAT_INDICATOR_MAP = {
                     "消防": ["B2", "B3"],
                     "设施": ["B7", "D10"],
@@ -174,15 +175,21 @@ def render(session: Session):
                     "药品": ["D6"],
                     "其他": [],
                 }
-                rec_codes = CAT_INDICATOR_MAP.get(default_cat, [])
                 ind_by_code = {i["code"]: i for i in BUILTIN_INDICATORS}
+                # 1) AI 直接给出条款编号（如 B3）→ 优先用它
+                ai_code = str(ai.get("standard_code") or "").strip().upper()
+                rec_codes = []
+                if ai_code and ai_code in ind_by_code:
+                    rec_codes = [ai_code]
+                # 2) 无条款编号 → 用类别映射
+                if not rec_codes:
+                    rec_codes = CAT_INDICATOR_MAP.get(default_cat, [])
                 rec_inds = [ind_by_code[c] for c in rec_codes if c in ind_by_code]
                 # 指标下拉选项（推荐指标排最前，自动选第一个推荐）
                 ind_opts = {f"{i['code']} {i['item']}（扣{i['deduct']}分）": i for i in BUILTIN_INDICATORS}
                 if rec_inds:
                     default_ind_label = f"{rec_inds[0]['code']} {rec_inds[0]['item']}（扣{rec_inds[0]['deduct']}分）"
-                    ind_choices = ["（不关联指标）"] + [f"{i['code']} {i['item']}（扣{i['deduct']}分）" for i in rec_inds] \
-                                  + ["（不关联指标）"]  # 占位避免重复
+                    ind_choices = ["（不关联指标）"] + [f"{i['code']} {i['item']}（扣{i['deduct']}分）" for i in rec_inds]
                     # 去重保序
                     seen = set()
                     ind_choices = [x for x in ind_choices if not (x in seen or seen.add(x))]
