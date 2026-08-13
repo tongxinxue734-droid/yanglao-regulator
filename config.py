@@ -79,10 +79,10 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 NOTIFY_EMAIL = os.environ.get("NOTIFY_EMAIL", "")
 
-# AI 能力开关：offline(演示模拟) / api(豆包视觉 API)
+# AI 能力开关：offline(演示模拟) / api(智谱 GLM-4V 免费视觉识别)
 AI_MODE = "offline"
-# 豆包视觉（火山引擎方舟，OpenAI 兼容接口）
-ARK_API_KEY = os.environ.get("ARK_API_KEY", "")
-ARK_BASE_URL = os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
-ARK_VISION_MODEL = os.environ.get("ARK_VISION_MODEL", "doubao-1.5-vision-pro-32k-250115")
+# 智谱 GLM-4V（免费视觉模型，OpenAI 兼容接口）
+ARK_API_KEY = os.environ.get("ZHIPU_API_KEY", os.environ.get("ARK_API_KEY", ""))
+ARK_BASE_URL = os.environ.get("ZHIPU_API_URL", "https://open.bigmodel.cn/api/paas/v4/chat/completions")
+ARK_VISION_MODEL = os.environ.get("ZHIPU_VISION_MODEL", "glm-4v-flash")
 VOICE_API_URL = os.environ.get("VOICE_API_URL", "")
