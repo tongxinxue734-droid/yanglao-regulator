@@ -25,7 +25,12 @@ def inject_theme():
     h1 { font-size: 30px !important; font-weight: 700 !important; }
     h2 { font-size: 24px !important; font-weight: 700 !important; }
     h3 { font-size: 20px !important; font-weight: 700 !important; }
-    header {visibility: hidden;}
+    /* 隐藏 Streamlit 顶部多余按钮（Deploy/主菜单/装饰），保留左上角「≡」汉堡按钮（手机端展开菜单用）
+       注意：stExpandSidebarButton（汉堡）也在 stToolbar 内，不能整块隐藏 stToolbar */
+    [data-testid="stToolbar"] [data-testid="stBaseButton-header"] { display: none; }
+    [data-testid="stToolbar"] [data-testid="stMainMenuButton"] { display: none; }
+    [data-testid="stDecoration"] { display: none; }
+    header { background: transparent !important; }
     .block-container {
         padding-top: 1.6rem;
         padding-bottom: 2.5rem;
