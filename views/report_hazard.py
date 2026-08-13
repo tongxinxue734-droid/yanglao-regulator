@@ -111,27 +111,27 @@ def render(session: Session):
     tab1, tab2, tab3 = st.tabs(["📸 AI 拍照识别", "🎤 语音智能转写", "📝 快速图文录入"])
 
     with tab1:
-        st.info("💡 请上传隐患照片或现场拍照，系统将自动调用视觉大模型框选违规点并匹配扣分指标。")
-        col_cam, col_res = st.columns([1, 1])
+        st.info("💡 请上传隐患照片或现场拍照，系统将自动调用视觉大模型识别，AI 结果仅供参考，请人工核实确认后提交。")
+        # ---- 第一步：上传（整行） ----
+        img_source = st.radio("获取图片方式", ["📂 本地相册", "📷 现场拍摄"], horizontal=True,
+                              label_visibility="collapsed")
+        photo = None
+        if img_source == "📂 本地相册":
+            photo = st.file_uploader("选择隐患照片（点击或拖拽）", type=['jpg', 'jpeg', 'png'])
+        else:
+            photo = st.camera_input("拍摄现场照片")
 
-        with col_cam:
-            img_source = st.radio("获取图片方式", ["📂 本地相册", "📷 现场拍摄"], horizontal=True,
-                                  label_visibility="collapsed")
+        if photo is not None:
+            # 真实调用 AI 识别（offline 演示 / api 视觉大模型可插拔）
+            from services.ai_vision import recognize as ai_recognize
+            with st.spinner("AI 识别中..."):
+                ai = ai_recognize(photo.getvalue())
 
-            photo = None
-            if img_source == "📂 本地相册":
-                photo = st.file_uploader("选择隐患照片（点击或拖拽）", type=['jpg', 'jpeg', 'png'])
-            else:
-                photo = st.camera_input("拍摄现场照片")
+            # ---- 第二步：下方左右两栏（左=AI 诊断报告，右=人工确认） ----
+            st.markdown("---")
+            col_diag, col_confirm = st.columns([1, 1.2])
 
-        with col_res:
-            if photo is not None:
-                st.success("✅ 图片已获取！正在进行视觉分析...")
-                # 真实调用 AI 识别（offline 演示 / api 视觉大模型可插拔）
-                from services.ai_vision import recognize as ai_recognize
-                with st.spinner("AI 识别中..."):
-                    ai = ai_recognize(photo.getvalue())
-
+            with col_diag:
                 st.markdown("#### 🔍 AI 诊断报告")
                 st.markdown(f"**识别类目**：{ai.get('category', '—')} · "
                             f"**风险等级**：{level_badge(ai.get('level', '黄色'))} · "
@@ -141,16 +141,45 @@ def render(session: Session):
                 st.markdown(f"**整改建议**：{ai.get('advice', '—')}")
                 if ai.get("mode"):
                     st.caption(f"识别模式：{ai['mode']} · {ai.get('note', '')}")
+                # 展示照片小图
+                st.image(photo.getvalue(), width=240, caption="现场照片（待确认）")
 
-                # ===== 人工审核确认（容错环节）：AI 结果仅供参考，人工修正后提交 =====
-                st.markdown("---")
+            with col_confirm:
                 st.markdown("#### 🧑‍💼 人工审核确认")
-                st.caption("AI 识别结果仅供辅助，请检查员核实后修正并确认；错误识别可在此纠正，防止误报工单。")
+                st.caption("AI 结果仅供辅助，请核实修正后提交；错误识别可在此纠正，防止误报工单。")
 
                 # 预填 AI 结果，供审核修改
                 default_cat = ai.get("category", "其他")
                 default_title = ai.get("title", "")
                 default_level = ai.get("level", "黄色")
+
+                # AI 类目 → 推荐指标映射（自动联动扣分，人工可改）
+                CAT_INDICATOR_MAP = {
+                    "消防": ["B2", "B3"],
+                    "设施": ["B7", "D10"],
+                    "用电": ["B7", "D10"],
+                    "环境": ["B7", "D10"],
+                    "护理": ["C1", "C5"],
+                    "食品": ["D8", "D9"],
+                    "应急": ["E3"],
+                    "药品": ["D6"],
+                    "其他": [],
+                }
+                rec_codes = CAT_INDICATOR_MAP.get(default_cat, [])
+                ind_by_code = {i["code"]: i for i in BUILTIN_INDICATORS}
+                rec_inds = [ind_by_code[c] for c in rec_codes if c in ind_by_code]
+                # 指标下拉选项（推荐指标排最前，自动选第一个推荐）
+                ind_opts = {f"{i['code']} {i['item']}（扣{i['deduct']}分）": i for i in BUILTIN_INDICATORS}
+                if rec_inds:
+                    default_ind_label = f"{rec_inds[0]['code']} {rec_inds[0]['item']}（扣{rec_inds[0]['deduct']}分）"
+                    ind_choices = ["（不关联指标）"] + [f"{i['code']} {i['item']}（扣{i['deduct']}分）" for i in rec_inds] \
+                                  + ["（不关联指标）"]  # 占位避免重复
+                    # 去重保序
+                    seen = set()
+                    ind_choices = [x for x in ind_choices if not (x in seen or seen.add(x))]
+                else:
+                    default_ind_label = None
+                    ind_choices = ["（不关联指标）"] + list(ind_opts.keys())
 
                 with st.form("ai_review_form"):
                     fc1, fc2 = st.columns(2)
@@ -163,10 +192,11 @@ def render(session: Session):
                         r_title = st.text_input("隐患标题", value=default_title)
                         r_desc = st.text_area("隐患描述", value=default_title,
                                               height=70, placeholder="补充现场情况说明…")
-                    # 关联违规指标（可选，决定是否联动扣分）
-                    ind_opts = {f"{i['code']} {i['item']}（扣{i['deduct']}分）": i for i in BUILTIN_INDICATORS}
-                    r_ind = st.selectbox("关联违规指标（不选则不联动扣分）",
-                                         ["（不关联指标）"] + list(ind_opts.keys()))
+                    # 关联违规指标（AI 按类目自动推荐并预选，人工可改；决定是否联动扣分）
+                    default_idx = ind_choices.index(default_ind_label) if default_ind_label in ind_choices else 0
+                    r_ind = st.selectbox("关联违规指标（按 AI 类目自动推荐，可修改）",
+                                         ind_choices, index=default_idx,
+                                         help="选择指标后提交将按该指标扣分并纳入机构月度评分")
                     r_remark = st.text_area("审核意见（容错备注，如识别有误请说明）", height=60,
                                             placeholder="例如：AI 识别为消防通道堵塞，现场核实为杂物堆放，已修正。")
                     submitted = st.form_submit_button("✅ 确认无误，提交工单", type="primary")
@@ -182,15 +212,15 @@ def render(session: Session):
                         photos.append(p)
                     else:
                         st.info("该照片与历史记录重复，已自动去重（问题仍立案）")
-                    # 解析指标
-                    ind = ind_opts.get(r_ind)
+                    # 解析指标（推荐/手动选择的）
+                    ind = ind_opts.get(r_ind) or ({i["code"]: i for i in BUILTIN_INDICATORS}.get(r_ind.split(" ")[0]) if r_ind != "（不关联指标）" else None)
                     ind_code = ind["code"] if ind else None
                     ded = ind["deduct"] if ind else 0
                     # 构建隐患记录（人工审核后的结果）
                     new_hazard = Hazard(
                         code=f"HZ-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",
                         category=r_cat,
-                        title=f"[AI识别·人工审核] {r_title}" if ai.get("mode") != "api" else r_title,
+                        title=f"[AI识别·人工审核] {r_title}",
                         description=(r_desc + (f"　（审核意见：{r_remark}）" if r_remark.strip() else "")),
                         level=r_level,
                         source="AI识别",
@@ -208,10 +238,10 @@ def render(session: Session):
                     # 审计留痕：人工审核记录
                     session.add(AuditLog(user_id=user.id, username=user.username,
                                          action="上报-人工审核", target=new_hazard.code,
-                                         detail=f"AI识别{ai.get('title','')} → 人工确认:{r_title}（{r_level}）"))
+                                         detail=f"AI识别{ai.get('title','')} → 人工确认:{r_title}（{r_level}）扣{ded}分"))
                     session.commit()
                     st.balloons()
-                    st.success(f"工单 {new_hazard.code} 已提交（人工审核通过）！"
+                    st.success(f"工单 {new_hazard.code} 已提交（{'联动扣 ' + str(ded) + ' 分' if ded else '未关联指标'}）！"
                                + ("（含防作弊水印照片）" if photos else ""))
 
     with tab2:
