@@ -242,6 +242,7 @@ def render(session: Session):
                         deadline=datetime.datetime.now() + datetime.timedelta(days=HAZARD_LEVELS[r_level]["days"])
                     )
                     session.add(new_hazard)
+                    session.flush()  # 先 flush 拿到 id，确保扣分记录能关联到工单
                     _sync_violation(session, user, org_id, new_hazard)
                     # 审计留痕：人工审核记录
                     session.add(AuditLog(user_id=user.id, username=user.username,
@@ -321,6 +322,7 @@ def render(session: Session):
                                 days=HAZARD_LEVELS[analysis["level"]]["days"])
                         )
                         session.add(new_hazard)
+                        session.flush()  # 先 flush 拿到 id，确保扣分记录关联
                         _sync_violation(session, user, org_id, new_hazard)
                         session.commit()
                         st.success("✅ 语音隐患已成功上报并建档！")
@@ -375,6 +377,7 @@ def render(session: Session):
                         deadline=datetime.datetime.now() + datetime.timedelta(days=HAZARD_LEVELS[level]["days"])
                     )
                     session.add(h)
+                    session.flush()  # 先 flush 拿到 id，确保扣分记录关联
                     _sync_violation(session, user, org_id, h)
                     session.add(AuditLog(user_id=user.id, username=user.username, action="新增隐患", target=h.code))
                     session.commit()

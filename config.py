@@ -94,5 +94,5 @@ if os.path.exists(_env_local):
 # 智谱 GLM-4V（免费视觉模型，OpenAI 兼容接口）
 ARK_API_KEY = os.environ.get("ZHIPU_API_KEY", os.environ.get("ARK_API_KEY", ""))
 ARK_BASE_URL = os.environ.get("ZHIPU_API_URL", "https://open.bigmodel.cn/api/paas/v4/chat/completions")
-ARK_VISION_MODEL = os.environ.get("ZHIPU_VISION_MODEL", "glm-4v-flash")
+ARK_VISION_MODEL = os.environ.get("ZHIPU_VISION_MODEL", "glm-4v-plus")
 VOICE_API_URL = os.environ.get("VOICE_API_URL", "")
