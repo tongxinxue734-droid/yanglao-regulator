@@ -80,7 +80,17 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "")
 NOTIFY_EMAIL = os.environ.get("NOTIFY_EMAIL", "")
 
 # AI 能力开关：offline(演示模拟) / api(智谱 GLM-4V 免费视觉识别)
-AI_MODE = "offline"
+# Key 从环境变量 ZHIPU_API_KEY 读取；本地可放 .env.local（已加入 .gitignore，不提交），云端用 Streamlit Secrets
+AI_MODE = os.environ.get("AI_MODE", "api")
+# 若存在本地 .env.local 则加载（仅本机使用，绝不进 git）
+_env_local = os.path.join(BASE_DIR, ".env.local")
+if os.path.exists(_env_local):
+    with open(_env_local, encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip().strip('"\''))
 # 智谱 GLM-4V（免费视觉模型，OpenAI 兼容接口）
 ARK_API_KEY = os.environ.get("ZHIPU_API_KEY", os.environ.get("ARK_API_KEY", ""))
 ARK_BASE_URL = os.environ.get("ZHIPU_API_URL", "https://open.bigmodel.cn/api/paas/v4/chat/completions")
