@@ -119,7 +119,15 @@ def render(session: Session):
         if img_source == "📂 本地相册":
             photo = st.file_uploader("选择隐患照片（点击或拖拽）", type=['jpg', 'jpeg', 'png'])
         else:
-            photo = st.camera_input("拍摄现场照片")
+            # 现场拍摄：st.file_uploader 在手机端点击会自动弹出「拍照/相册」系统选择器，
+            # 选「拍照」即唤起系统相机 App（全屏拍摄）；电脑端打开文件选择窗口。
+            # 这是 Streamlit 支持"调用系统相机"的标准方式（无需自定义组件）。
+            photo = st.file_uploader(
+                "📷 现场拍摄",
+                type=['jpg', 'jpeg', 'png'],
+                key="capture_input",
+                help="手机：点击后选「拍照」→ 唤起系统相机拍摄；电脑：选择照片文件",
+                accept_multiple_files=False)
 
         if photo is not None:
             # 真实调用 AI 识别（offline 演示 / api 视觉大模型可插拔）
