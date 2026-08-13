@@ -141,12 +141,13 @@ def render(session: Session):
 
             with col_diag:
                 st.markdown("#### 🔍 AI 诊断报告")
-                st.markdown(f"**识别类目**：{ai.get('category', '—')} · "
-                            f"**风险等级**：{level_badge(ai.get('level', '黄色'))} · "
+                st.markdown(f"**📝 场景描述**：{ai.get('scene_desc') or '—'}")
+                st.markdown(f"**风险类别**：{ai.get('category', '—')} · "
+                            f"**等级**：{level_badge(ai.get('level', '蓝色'))} · "
                             f"**置信度**：{ai.get('confidence', 0) * 100:.0f}%", unsafe_allow_html=True)
-                st.markdown(f"**疑似问题**：{ai.get('title', '—')}")
-                st.markdown(f"**规范依据**：{ai.get('law_basis', '—')}")
-                st.markdown(f"**整改建议**：{ai.get('advice', '—')}")
+                st.markdown(f"**疑似风险**：{ai.get('title', '—')}")
+                st.markdown(f"**建议**：{ai.get('advice', '—')}")
+                st.markdown(f"**法规依据**：{ai.get('law_basis', '—')}")
                 if ai.get("mode"):
                     st.caption(f"识别模式：{ai['mode']} · {ai.get('note', '')}")
                 # 展示照片小图

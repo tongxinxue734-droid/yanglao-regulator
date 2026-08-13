@@ -55,7 +55,7 @@ VISION_KNOWLEDGE = {
 
 def recognize(image_bytes: bytes) -> dict:
     """识别隐患。
-    - api 模式：调用智谱 GLM-4V-Flash 免费视觉模型（OpenAI 兼容接口），未配置 Key 时自动回退演示；
+    - api 模式：调用智谱 GLM-4V 视觉模型（OpenAI 兼容接口），未配置 Key 时自动回退演示；
     - offline 模式：返回预设库随机结构（置信度偏低提示人工复核）。"""
     if config.AI_MODE == "api":
         return _recognize_api(image_bytes)
@@ -79,25 +79,26 @@ def _recognize_offline(image_bytes: bytes) -> dict:
     }
 
 
-# 智谱 GLM-4V 识别提示词：要求返回结构化 JSON，映射到标准类目
-# 平衡策略：明显隐患必报；疑似情况报"疑似"并给低置信度；确无隐患才报无隐患
-_VISION_SYSTEM_PROMPT = """你是养老机构安全巡检的视觉识别助手。请分析图片，判断是否存在安全隐患，只输出 JSON。
-
-判定规则：
-1. 有【明显可见】安全隐患（如通道堵塞、电线裸露、灭火器缺失/过期、地面湿滑积水、扶手损坏、药品乱放、食品不洁等）→ 正常报告，置信度 0.7-1.0。
-2. 【疑似】有隐患但不确定（如物品杂乱、地面有反光、设备看起来异常）→ 也要报告，title 加"疑似"前缀，置信度 0.4-0.6。
-3. 只有【确定没有】任何异常时，才输出 category="其他", title="未发现明显隐患", level="蓝色", confidence=0.1。
-4. 不要漏报：只要场景有异常迹象就报告（宁多勿漏，人工审核会二次确认）。
+# 智谱 GLM-4V 识别提示词：场景描述 + 疑似提醒（不强行判定隐患）
+# 定位：AI 如实描述画面内容，给出疑似风险点供人工判断——符合通用视觉模型真实能力
+_VISION_SYSTEM_PROMPT = """你是养老机构安全巡检的视觉识别助手。请分析图片，只输出 JSON。你的任务是【如实描述场景】+【提示疑似风险】，不强行判定隐患。
 
 JSON 格式：
 {
-  "category": "类别（从：消防/设施/用电/环境/护理/食品/应急/药品/其他 中选择）",
-  "title": "隐患标题，简短（如：消防通道堵塞、疑似地面湿滑）",
-  "level": "风险等级（红色=紧急24小时/橙色=较重3天/黄色=一般7天/蓝色=轻微15天）",
-  "law_basis": "法规依据（不确定填待核实）",
-  "confidence": 0.0到1.0的置信度数字,
-  "advice": "整改建议（一句话，无隐患则填无需整改）"
-}"""
+  "scene_desc": "简要描述画面内容（30-60字）：这是什么场所、有什么物体、大致状态。例如：办公走廊，白色墙面浅色地砖，墙上有灭火器箱，地面有折叠椅。",
+  "category": "疑似风险所属类别（从：消防/设施/用电/环境/护理/食品/应急/药品/其他 中选择；无明显疑似时填其他）",
+  "title": "疑似风险描述（用"疑似"开头；无明显风险时填：未发现明显隐患）",
+  "level": "风险等级（红色=紧急/橙色=较重/黄色=一般/蓝色=轻微；无风险填蓝色）",
+  "law_basis": "相关法规依据（不确定填待核实）",
+  "confidence": 0.0到1.0的置信度数字（仅当你确信用肉眼能确认明确危险时才高于0.7，否则0.3-0.5）,
+  "advice": "建议（如：请现场确认地面是否湿滑；无需整改则填：现场正常）"
+}
+
+描述要点：
+- 如实描述你看到的（场所/物体/状态），不要编造
+- 疑似风险用"疑似"措辞（如：地面有反光疑似湿滑、物品较多疑似通道不便、灭火器箱未见灭火器疑似缺失）
+- 明显正常的环境（正常走廊/办公室/房间）→ title 填"未发现明显隐患"，scene_desc 如实描述即可
+- 你的角色是"辅助提醒"，最终判断由检查员现场确认"""
 
 
 def _recognize_api(image_bytes: bytes) -> dict:
@@ -120,7 +121,7 @@ def _recognize_api(image_bytes: bytes) -> dict:
             "messages": [
                 {"role": "system", "content": _VISION_SYSTEM_PROMPT},
                 {"role": "user", "content": [
-                    {"type": "text", "text": "请识别这张养老机构现场照片中的安全隐患。"},
+                    {"type": "text", "text": "请描述这张照片的场景，并提示可能的疑似风险（如有）。"},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
                 ]},
             ],
@@ -142,12 +143,13 @@ def _recognize_api(image_bytes: bytes) -> dict:
             content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         parsed = json.loads(content)
         # 兜底字段
+        parsed.setdefault("scene_desc", "")
         parsed.setdefault("category", "其他")
-        parsed.setdefault("title", "隐患")
-        parsed.setdefault("level", "黄色")
+        parsed.setdefault("title", "未发现明显隐患")
+        parsed.setdefault("level", "蓝色")
         parsed.setdefault("law_basis", "待核实")
-        parsed.setdefault("confidence", 0.5)
-        parsed.setdefault("advice", "请现场核实整改。")
+        parsed.setdefault("confidence", 0.3)
+        parsed.setdefault("advice", "现场正常，无需整改。")
         parsed["mode"] = "api-智谱GLM4V"
         parsed["note"] = "智谱 GLM-4V 免费视觉模型识别结果，请人工复核确认后提交"
         return parsed
