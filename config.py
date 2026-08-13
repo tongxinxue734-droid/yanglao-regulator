@@ -10,7 +10,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-APP_NAME = "养老机构安全巡检与合规考核系统"
+APP_NAME = "养老机构安全监管平台"
 ORG_NAME = "示例养老服务中心"
 
 # ---------------------------------------------------------------

@@ -407,7 +407,7 @@ def seed_all(session: Session, with_demo: bool = True):
         session.add(Notification(user_id=users["qian"].id, ntype="逾期预警",
                                  content="存在 1 项隐患即将/已经逾期，请尽快处理。", link="隐患台账"))
         session.add(Notification(user_id=users["admin"].id, ntype="系统",
-                                 content="欢迎使用养老机构安全巡检与合规考核系统。"))
+                                 content="欢迎使用养老机构安全监管平台。"))
         session.add(AuditLog(user_id=users["admin"].id, username="admin",
                              action="系统初始化", target="seed", detail="初始化演示数据"))
 

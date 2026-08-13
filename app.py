@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""养老机构安全巡检与合规考核系统 - Streamlit 入口"""
+"""养老机构安全监管平台 - Streamlit 入口"""
 import streamlit as st
 import config
 import db

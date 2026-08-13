@@ -100,6 +100,6 @@ def render(session):
             <code>li</code> / <code>wang</code>（区县组长）— <code>123456</code><br>
             <code>zhao</code> / <code>qian</code> / <code>sun</code>（检查员）— <code>123456</code>
         </div>
-        <div class="copyright">© 2026 养老机构智慧监管平台 · 政务数据安全合规</div>
+        <div class="copyright">© 2026 养老机构安全监管平台 · 政务数据安全合规</div>
         <div class="pwa-hint">📱 手机上打开？添加到桌面体验更佳：Safari「分享→添加到主屏幕」｜Chrome「菜单→添加到主屏幕」</div>
     """, unsafe_allow_html=True)
