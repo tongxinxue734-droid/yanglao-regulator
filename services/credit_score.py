@@ -11,8 +11,10 @@ from services.mask import staff_mask
 
 
 def employee_credit(session: Session):
-    """检查员/组长信誉分：基础 100 + 上报 +5 - 逾期 -5 - 事故 -10"""
-    users = session.query(User).filter(User.role_level.in_([2, 3])).all()
+    """检查员/组长信誉分：基础 100 + 上报 +5 - 逾期 -5 - 事故 -10
+    只统计在职（active=True）账号，停用账号不再上榜"""
+    users = session.query(User).filter(
+        User.role_level.in_([2, 3]), User.active == True).all()
     rnd = random.Random(202607)
     rows = []
     for u in users:

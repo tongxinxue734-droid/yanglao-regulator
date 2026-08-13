@@ -127,52 +127,92 @@ def render(session: Session):
         with col_res:
             if photo is not None:
                 st.success("✅ 图片已获取！正在进行视觉分析...")
+                # 真实调用 AI 识别（offline 演示 / api 视觉大模型可插拔）
+                from services.ai_vision import recognize as ai_recognize
                 with st.spinner("AI 识别中..."):
-                    import time
-                    time.sleep(1.5)  # 模拟网络延迟
+                    ai = ai_recognize(photo.getvalue())
 
-                    # 模拟视觉识别返回结果
-                    st.markdown("#### 🔍 AI 诊断报告")
-                    st.markdown(f"**最高风险匹配**：{level_badge('橙色')}", unsafe_allow_html=True)
-                    st.markdown("**识别类目**：设施安全")
-                    st.markdown("**关联违规指标**：B3 (占用、封锁消防通道、安全出口)")
-                    st.markdown("**预估扣分**：6 分")
-                    st.markdown("**处置建议**：7 日内完成整改，逾期将面临 1000 元罚款。")
+                st.markdown("#### 🔍 AI 诊断报告")
+                st.markdown(f"**识别类目**：{ai.get('category', '—')} · "
+                            f"**风险等级**：{level_badge(ai.get('level', '黄色'))} · "
+                            f"**置信度**：{ai.get('confidence', 0) * 100:.0f}%", unsafe_allow_html=True)
+                st.markdown(f"**疑似问题**：{ai.get('title', '—')}")
+                st.markdown(f"**规范依据**：{ai.get('law_basis', '—')}")
+                st.markdown(f"**整改建议**：{ai.get('advice', '—')}")
+                if ai.get("mode"):
+                    st.caption(f"识别模式：{ai['mode']} · {ai.get('note', '')}")
 
-                    if st.button("🚀 一键生成工单并指派", type="primary"):
-                        # 保存水印照片（姓名+机构+时间，感知哈希去重）
-                        photos = []
-                        if photo is not None:
-                            from services.watermark import save_photo
-                            org_name = org_label(org_opts[org_sel].name, org_opts[org_sel].code) if orgs else "辖区"
-                            p = save_photo(photo.getvalue(), name=user.name,
-                                           room=org_name, location="现场检查", subdir="hazards")
-                            if p:
-                                photos.append(p)
-                            else:
-                                st.info("该照片与历史记录重复，已自动去重（问题仍立案）")
-                        # 构建隐患记录
-                        new_hazard = Hazard(
-                            code=f"HZ-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",
-                            category="设施安全",
-                            title="[AI视觉识别] 消防通道存在物品堆积",
-                            description="AI 摄像头识别到走廊/消防通道有轮椅及杂物堆积，存在安全隐患。",
-                            level="橙色",
-                            source="AI识别",
-                            indicator_code="B3",
-                            deducted=6,
-                            org_id=org_id,
-                            reporter_id=user.id,
-                            photos=photos,
-                            status="pending_rectify",
-                            deadline=datetime.datetime.now() + datetime.timedelta(days=HAZARD_LEVELS["橙色"]["days"])
-                        )
-                        session.add(new_hazard)
-                        _sync_violation(session, user, org_id, new_hazard)
-                        session.commit()
-                        st.balloons()
-                        st.success(f"工单 {new_hazard.code} 已成功派发至相关责任人！"
-                                   + ("（含防作弊水印照片）" if photos else ""))
+                # ===== 人工审核确认（容错环节）：AI 结果仅供参考，人工修正后提交 =====
+                st.markdown("---")
+                st.markdown("#### 🧑‍💼 人工审核确认")
+                st.caption("AI 识别结果仅供辅助，请检查员核实后修正并确认；错误识别可在此纠正，防止误报工单。")
+
+                # 预填 AI 结果，供审核修改
+                default_cat = ai.get("category", "其他")
+                default_title = ai.get("title", "")
+                default_level = ai.get("level", "黄色")
+
+                with st.form("ai_review_form"):
+                    fc1, fc2 = st.columns(2)
+                    with fc1:
+                        cat_opts = HAZARD_CATEGORIES + ([default_cat] if default_cat not in HAZARD_CATEGORIES else [])
+                        r_cat = st.selectbox("隐患类别", cat_opts, index=cat_opts.index(default_cat) if default_cat in cat_opts else 0)
+                        r_level = st.selectbox("风险等级", list(HAZARD_LEVELS.keys()),
+                                               index=list(HAZARD_LEVELS.keys()).index(default_level) if default_level in HAZARD_LEVELS else 0)
+                    with fc2:
+                        r_title = st.text_input("隐患标题", value=default_title)
+                        r_desc = st.text_area("隐患描述", value=default_title,
+                                              height=70, placeholder="补充现场情况说明…")
+                    # 关联违规指标（可选，决定是否联动扣分）
+                    ind_opts = {f"{i['code']} {i['item']}（扣{i['deduct']}分）": i for i in BUILTIN_INDICATORS}
+                    r_ind = st.selectbox("关联违规指标（不选则不联动扣分）",
+                                         ["（不关联指标）"] + list(ind_opts.keys()))
+                    r_remark = st.text_area("审核意见（容错备注，如识别有误请说明）", height=60,
+                                            placeholder="例如：AI 识别为消防通道堵塞，现场核实为杂物堆放，已修正。")
+                    submitted = st.form_submit_button("✅ 确认无误，提交工单", type="primary")
+
+                if submitted:
+                    # 保存水印照片（姓名+机构+时间，感知哈希去重）
+                    photos = []
+                    from services.watermark import save_photo
+                    org_name = org_label(org_opts[org_sel].name, org_opts[org_sel].code) if orgs else "辖区"
+                    p = save_photo(photo.getvalue(), name=user.name,
+                                   room=org_name, location="现场检查", subdir="hazards")
+                    if p:
+                        photos.append(p)
+                    else:
+                        st.info("该照片与历史记录重复，已自动去重（问题仍立案）")
+                    # 解析指标
+                    ind = ind_opts.get(r_ind)
+                    ind_code = ind["code"] if ind else None
+                    ded = ind["deduct"] if ind else 0
+                    # 构建隐患记录（人工审核后的结果）
+                    new_hazard = Hazard(
+                        code=f"HZ-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        category=r_cat,
+                        title=f"[AI识别·人工审核] {r_title}" if ai.get("mode") != "api" else r_title,
+                        description=(r_desc + (f"　（审核意见：{r_remark}）" if r_remark.strip() else "")),
+                        level=r_level,
+                        source="AI识别",
+                        indicator_code=ind_code,
+                        deducted=ded,
+                        ai_result=ai,
+                        org_id=org_id,
+                        reporter_id=user.id,
+                        photos=photos,
+                        status="pending_rectify",
+                        deadline=datetime.datetime.now() + datetime.timedelta(days=HAZARD_LEVELS[r_level]["days"])
+                    )
+                    session.add(new_hazard)
+                    _sync_violation(session, user, org_id, new_hazard)
+                    # 审计留痕：人工审核记录
+                    session.add(AuditLog(user_id=user.id, username=user.username,
+                                         action="上报-人工审核", target=new_hazard.code,
+                                         detail=f"AI识别{ai.get('title','')} → 人工确认:{r_title}（{r_level}）"))
+                    session.commit()
+                    st.balloons()
+                    st.success(f"工单 {new_hazard.code} 已提交（人工审核通过）！"
+                               + ("（含防作弊水印照片）" if photos else ""))
 
     with tab2:
         st.caption("🎙️ 语音记录上报：现场口述 → 语音转写 → 自动匹配 39 条违规指标"
