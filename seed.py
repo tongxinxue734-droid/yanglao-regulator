@@ -71,7 +71,7 @@ def seed_all(session: Session, with_demo: bool = True):
     # ---- 账号（幂等）：政府监管人员体系 ----
     if session.query(User).count() == 0:
         admin = User(username="admin", password_hash=hash_pw("admin123"), name="王建国",
-                     role_level=1, dept_name="市民政局养老服务科", phone="138****0001",
+                     role_level=1, dept_name="市民政局养老服务处", phone="138****0001",
                      org_ids=[o.id for o in orgs])
         m1 = User(username="li", password_hash=hash_pw("123456"), name="李慧敏",
                   role_level=2, dept_name="雁塔区民政局", parent_id=1, phone="138****0002",
@@ -83,13 +83,13 @@ def seed_all(session: Session, with_demo: bool = True):
         session.flush()
         session.add_all([
             User(username="zhao", password_hash=hash_pw("123456"), name="赵文静",
-                 role_level=3, dept_name="雁塔区民政检查队", parent_id=m1.id, phone="138****0004",
+                 role_level=3, dept_name="雁塔区民政局养老服务科", parent_id=m1.id, phone="138****0004",
                  org_ids=m1.org_ids),
             User(username="qian", password_hash=hash_pw("123456"), name="钱志远",
-                 role_level=3, dept_name="雁塔区民政检查队", parent_id=m1.id, phone="138****0005",
+                 role_level=3, dept_name="雁塔区民政局养老服务科", parent_id=m1.id, phone="138****0005",
                  org_ids=m1.org_ids),
             User(username="sun", password_hash=hash_pw("123456"), name="孙丽华",
-                 role_level=3, dept_name="莲湖区民政检查队", parent_id=m2.id, phone="138****0006",
+                 role_level=3, dept_name="莲湖区民政局养老服务科", parent_id=m2.id, phone="138****0006",
                  org_ids=m2.org_ids),
         ])
         session.flush()
