@@ -27,7 +27,7 @@ def render(session):
         color: white; font-size: 22px; font-weight: bold;
         box-shadow: 0 4px 12px rgba(37,99,235,0.2);
     }
-    .login-title { font-size: 24px; font-weight: 700; color: #111827; margin: 0 0 6px; letter-spacing: -0.3px; }
+    .login-title { font-size: 26px !important; font-weight: 700 !important; color: #111827 !important; margin: 0 0 6px !important; letter-spacing: -0.3px; white-space: nowrap !important; }
     .login-sub { font-size: 15px; color: #6B7280; margin: 0; }
     [data-testid="stForm"] {
         border: 1px solid #E5E7EB !important; border-radius: 12px !important;

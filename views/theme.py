@@ -292,6 +292,15 @@ def inject_theme():
     </style>
     """, unsafe_allow_html=True)
 
+    # ---- PWA：引用 static/ 目录的 manifest 与图标（enableStaticServing 已启用）----
+    # manifest 在 /app/static/manifest.json（Streamlit 静态目录），link 指向它
+    st.html("""
+    <link id="pwa-manifest" rel="manifest" href="/app/static/manifest.json">
+    <link rel="apple-touch-icon" href="/app/static/static_icon_192.png">
+    <link rel="icon" type="image/png" href="/app/static/static_icon_192.png">
+    <meta name="theme-color" content="#1E3A8A">
+    """)
+
 
 def app_header(title, subtitle):
     """主页面统一页眉"""

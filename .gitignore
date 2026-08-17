@@ -28,6 +28,29 @@ Dockerfile
 docker-compose.yml
 _tmp*
 
+# 演示/交付材料（PPT/视频/录音等，体积大，不提交公开仓库）
+deliverable/
+
+# HBuilderX 打包工程（本地生成，不提交）
+hbuilderx_app/
+
+# 前端临时工程
+node_modules/
+package.json
+package-lock.json
+
+# 根目录临时资源（PWA 图标已放 static/ 提交）
+app.webmanifest
+app_icons/
+static_icon.png
+static_icon_180.png
+static_icon_192.png
+
+# 根目录临时截图/预览图
+arch_preview.png
+login_title_check.png
+ppt_slide1.png
+
 # Playwright 测试快照
 .playwright-mcp/
 
